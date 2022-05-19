@@ -1,0 +1,61 @@
+version: "3.2"
+services:
+  ## docker run -d --rm --net rabbits -p 8080:15672 --hostname rabbit-1 --name rabbit-1 rabbitmq:3.8-management
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbit-1
+    hostname: rabbit-1
+    ports:
+        - 5672:5673
+        - 8080:15672
+    networks:
+        - rabbits
+
+  ## docker build . -t jayteakay/rabbitmq-producer-python:v1
+  ## docker run -it --rm --net rabbits -e RABBIT_HOST=rabbit-1 -e RABBIT_PORT=5672 -e RABBIT_USERNAME=guest -e RABBIT_PASSWORD=guest -p 80:80 jayteakay/rabbitmq-producer-python:v1
+  producer:
+    restart: always
+    image: jayteakay/rabbitmq-producer-python:v1
+    container_name: producer
+    ports:
+        - 80:80
+    networks:
+      - rabbits
+    environment:
+      - RABBIT_HOST=rabbit-1
+      - RABBIT_PORT=5672
+      - RABBIT_USERNAME=guest
+      - RABBIT_PASSWORD=guest
+      - PYTHONUNBUFFERED=1
+    build:
+      context: ./producer/
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+
+  ## docker build . -t jayteakay/rabbitmq-consumer-python:v1
+  ## docker run -it --rm --net rabbits -e RABBIT_HOST=rabbit-1 -e RABBIT_PORT=5672 -e RABBIT_USERNAME=guest -e RABBIT_PASSWORD=guest jayteakay/rabbitmq-consumer-python:v1
+  consumer:
+    restart: always
+    image: jayteakay/rabbitmq-consumer-python:v1
+    container_name: consumer
+    networks:
+      - rabbits
+    environment:
+      - RABBIT_HOST=rabbit-1
+      - RABBIT_PORT=5672
+      - RABBIT_USERNAME=guest
+      - RABBIT_PASSWORD=guest
+      - PYTHONUNBUFFERED=1
+    build:
+      context: ./consumer/
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+      - producer
+
+## docker network create rabbits
+networks:
+  rabbits:
+    name: rabbits
+    driver: bridge
